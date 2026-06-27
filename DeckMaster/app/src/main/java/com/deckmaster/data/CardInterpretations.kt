@@ -504,7 +504,8 @@ object CardInterpretations {
     val SPREAD_LABELS: Map<String, String> = mapOf(
         "SPREAD RULER" to """The card that occupys this space is the card that rules the entire spread. This card sets the main theme (and shows the main lesson) for this chosen time period.""",
         "AFFECTS YOU" to """The card that occupys this space, shows the overall affect that this spread has on you for the selected time period.""",
-        "BIRTH CARD" to """The card that occupys this space is your birthcard which is the"""
+        "BIRTH CARD" to """The card that occupys this space is your birthcard which is the most important card in your personal spread.""",
+        "LIKELY RESPONSE" to """The card that occupys this space shows the likely response or reaction to the energies at work during this time period."""
     )
 
     /** Get interpretation for a card in a given planetary context. */
@@ -523,4 +524,7 @@ object CardInterpretations {
         }
         return map[cardCode] ?: map[cardCode.uppercase()] ?: ""
     }
+
+    /** Get position description text for special spread labels. */
+    fun getLabel(label: String): String = SPREAD_LABELS[label] ?: ""
 }
