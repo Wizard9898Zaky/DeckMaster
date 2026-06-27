@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -311,7 +312,7 @@ fun MainSpreadScreen(
             currentSpread?.let { spread ->
                 Column(Modifier.fillMaxSize()) {
                     // Ruler row
-                    RulerRow(spread)
+                    RulerRow(spread, selectedCardIdx, onRulerTap = { vm.selectCard(-1) })
 
                     // Card grid  ← main body
                     Box(Modifier.weight(1f)) {
@@ -324,10 +325,14 @@ fun MainSpreadScreen(
 
                     // Interpretation panel
                     selectedCardIdx?.let { idx ->
+                        val (cardCode, cardIndex) = if (idx == -1)
+                            Pair(spread.rulerCard, null)
+                        else
+                            Pair(spread.quad.getOrElse(idx) { "" }, idx)
                         InterpretationPanel(
-                            cardCode = spread.quad.getOrElse(idx) { "" },
-                            planet   = SpreadEngine.planetForIndex(idx),
-                            onDismiss = { vm.selectCard(idx) /* toggle off */ }
+                            cardCode  = cardCode,
+                            cardIndex = cardIndex,
+                            onDismiss = { vm.selectCard(idx) }
                         )
                     }
                 }
@@ -344,7 +349,7 @@ fun MainSpreadScreen(
 // Ruler Row
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-fun RulerRow(spread: SpreadEngine.SpreadResult) {
+fun RulerRow(spread: SpreadEngine.SpreadResult, selectedCardIdx: Int?, onRulerTap: () -> Unit) {
     val planetLabels = listOf("☿","♀","♂","♃","♄","☉","☽")
     val planets = listOf("Mercury","Venus","Mars","Jupiter","Saturn","Sun","Moon")
 
@@ -359,10 +364,18 @@ fun RulerRow(spread: SpreadEngine.SpreadResult) {
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Ruler
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                // Ruler — tappable
+                Column(horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f).clickable { onRulerTap() }
+                ) {
                     Text("Ruler", color = RulerGlow, fontSize = 8.sp)
-                    PlayingCard(code = spread.rulerCard, isRuler = true, isHighlighted = true, isSmall = true)
+                    PlayingCard(
+                        code = spread.rulerCard,
+                        isRuler = true,
+                        isHighlighted = true,
+                        isSmall = true,
+                        isSelected = selectedCardIdx == -1
+                    )
                 }
 
                 Divider(Modifier.width(1.dp).height(44.dp), color = CardGold.copy(alpha = 0.3f))
@@ -419,9 +432,12 @@ fun CardGrid(
             "Sun"     to (38..44),
             "Moon"    to (45..51)
         )
-        groups.forEach { (label, range) ->
+        groups.forEachIndexed { grpIdx, (label, range) ->
+            // grpIdx 0 = Crown (no date label), 1..7 = Mercury..Moon (labels index 0..6)
+            val dateLabelIdx = grpIdx - 1
+            val dateLabel = if (dateLabelIdx >= 0) spread.rowDateLabels.getOrNull(dateLabelIdx) else null
             item {
-                PlanetSectionHeader(label)
+                PlanetSectionHeader(label, dateLabel)
             }
             item {
                 Row(
@@ -452,7 +468,7 @@ fun CardGrid(
 }
 
 @Composable
-fun PlanetSectionHeader(label: String) {
+fun PlanetSectionHeader(label: String, dateLabel: Pair<String, String>? = null) {
     val symbol = when (label) {
         "Crown"   -> "✦"
         "Mercury" -> "☿"
@@ -470,8 +486,22 @@ fun PlanetSectionHeader(label: String) {
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(symbol, color = PlanetGlow, fontSize = 14.sp)
-        Text(label, color = PlanetGlow, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        Divider(Modifier.weight(1f).height(1.dp), color = PlanetGlow.copy(alpha = 0.2f))
+        Text(label,  color = PlanetGlow, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        if (dateLabel != null) {
+            Text(
+                dateLabel.first,
+                color = CardGold.copy(alpha = 0.7f),
+                fontSize = 10.sp
+            )
+            Divider(Modifier.weight(1f).height(1.dp), color = PlanetGlow.copy(alpha = 0.2f))
+            Text(
+                dateLabel.second,
+                color = CardGold.copy(alpha = 0.7f),
+                fontSize = 10.sp
+            )
+        } else {
+            Divider(Modifier.weight(1f).height(1.dp), color = PlanetGlow.copy(alpha = 0.2f))
+        }
     }
 }
 
@@ -521,7 +551,12 @@ fun PlayingCard(
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (isNull) {
-                Text("✦", color = NullCard, fontSize = fontSize)
+                // Nullified = card turned upside-down (reversed)
+                Box(Modifier.fillMaxSize().rotate(180f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("↕", color = NullCard, fontSize = fontSize, fontWeight = FontWeight.Bold)
+                }
             } else {
                 Text(
                     cardLabel(code),
@@ -543,27 +578,48 @@ fun PlayingCard(
 @Composable
 fun InterpretationPanel(
     cardCode: String,
-    planet: Planet,
+    cardIndex: Int?,          // null = ruler card; 0..51 = spread position
     onDismiss: () -> Unit
 ) {
-    val planetName = planet.name.lowercase().replaceFirstChar { it.uppercase() }
-    val cardName   = CARD_NAMES[cardCode] ?: cardCode
-    val isNull     = cardCode == "0A"
+    val cardName = CARD_NAMES[cardCode] ?: cardCode
+    val isNull   = cardCode == "0A"
 
-    // Get interpretation text
-    val text = if (isNull) {
-        "This card has been nullified by contra-indication rules. " +
-        "When certain cards appear in proximity, they neutralize each other's influence."
-    } else {
-        com.deckmaster.data.CardInterpretations.get(planetName, cardCode).ifBlank {
-            "Interpretation for $cardName in $planetName position."
-        }
+    // Determine section label and data key based on position
+    val (sectionLabel, dataKey) = when {
+        isNull         -> Pair(null, null)
+        cardIndex == null  -> Pair("SPREAD RULER", "Crown")
+        cardIndex == 0     -> Pair("AFFECTS YOU",  "Crown")
+        cardIndex == 1     -> Pair("BIRTH CARD",   "Birthcard")
+        cardIndex == 2     -> Pair("LIKELY RESPONSE", "Crown")
+        cardIndex in 3..9  -> Pair(null, "Mercury")
+        cardIndex in 10..16 -> Pair(null, "Venus")
+        cardIndex in 17..23 -> Pair(null, "Mars")
+        cardIndex in 24..30 -> Pair(null, "Jupiter")
+        cardIndex in 31..37 -> Pair(null, "Saturn")
+        cardIndex in 38..44 -> Pair(null, "Sun")
+        else               -> Pair(null, "Moon")
     }
 
-    // Birth card extra
-    val birthCardText = if (!isNull && planet == Planet.CROWN) {
-        com.deckmaster.data.CardInterpretations.get("Birthcard", cardCode)
-    } else ""
+    // Planet label for subtitle (Crown/ruler use "Crown" position)
+    val planetLabel = when {
+        cardIndex == null                -> "Crown"
+        cardIndex in 0..2                -> "Crown"
+        cardIndex in 3..9                -> "Mercury"
+        cardIndex in 10..16              -> "Venus"
+        cardIndex in 17..23              -> "Mars"
+        cardIndex in 24..30              -> "Jupiter"
+        cardIndex in 31..37              -> "Saturn"
+        cardIndex in 38..44              -> "Sun"
+        else                             -> "Moon"
+    }
+
+    val text = when {
+        isNull      -> "This position has been nullified — the card here is reversed. Its effects no longer apply in the usual way."
+        dataKey != null -> com.deckmaster.data.CardInterpretations.get(dataKey, cardCode).ifBlank {
+            "Interpretation for $cardName in $planetLabel position."
+        }
+        else -> ""
+    }
 
     Card(
         Modifier
@@ -589,7 +645,7 @@ fun InterpretationPanel(
                         fontSize = 16.sp
                     )
                     Text(
-                        "$planetName Position",
+                        "$planetLabel Position",
                         color = PlanetGlow,
                         fontSize = 11.sp
                     )
@@ -615,21 +671,17 @@ fun InterpretationPanel(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                Text(text, color = OnSurface, fontSize = 13.sp, lineHeight = 19.sp)
-
-                if (birthCardText.isNotBlank()) {
-                    Spacer(Modifier.height(12.dp))
-                    Divider(color = CardGold.copy(alpha = 0.2f))
-                    Spacer(Modifier.height(8.dp))
+                // Show position label (SPREAD RULER / AFFECTS YOU / etc.) if present
+                if (sectionLabel != null) {
                     Text(
-                        "Birth Card Profile",
+                        sectionLabel,
                         color = CardGold,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 12.sp
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(birthCardText, color = OnSurface.copy(alpha = 0.85f), fontSize = 12.sp, lineHeight = 18.sp)
                 }
+                Text(text, color = OnSurface, fontSize = 13.sp, lineHeight = 19.sp)
             }
         }
     }
