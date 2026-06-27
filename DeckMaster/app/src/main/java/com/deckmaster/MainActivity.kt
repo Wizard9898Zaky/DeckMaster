@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -551,11 +550,12 @@ fun PlayingCard(
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (isNull) {
-                // Nullified = card turned upside-down (reversed)
-                Box(Modifier.fillMaxSize().rotate(180f),
+                // Nullified = face-down card (card back)
+                Box(
+                    Modifier.fillMaxSize().background(CardBack, RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("↕", color = NullCard, fontSize = fontSize, fontWeight = FontWeight.Bold)
+                    Text("⬡", color = CardBackPattern, fontSize = fontSize)
                 }
             } else {
                 Text(
@@ -613,12 +613,21 @@ fun InterpretationPanel(
         else                             -> "Moon"
     }
 
-    val text = when {
-        isNull      -> "This position has been nullified — the card here is reversed. Its effects no longer apply in the usual way."
-        dataKey != null -> com.deckmaster.data.CardInterpretations.get(dataKey, cardCode).ifBlank {
-            "Interpretation for $cardName in $planetLabel position."
-        }
+    // Build text: label description (if any) + card data
+    val labelText = if (sectionLabel != null)
+        com.deckmaster.data.CardInterpretations.getLabel(sectionLabel)
+    else ""
+
+    val cardText = when {
+        isNull      -> "This card is placed face down. It has been nullified and its energies do not apply during this period."
+        dataKey != null -> com.deckmaster.data.CardInterpretations.get(dataKey, cardCode)
         else -> ""
+    }
+
+    val displayText = when {
+        labelText.isNotBlank() && cardText.isNotBlank() -> "$labelText\n\n$cardText"
+        labelText.isNotBlank() -> labelText
+        else -> cardText.ifBlank { "No interpretation available for $cardName." }
     }
 
     Card(
@@ -671,17 +680,7 @@ fun InterpretationPanel(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                // Show position label (SPREAD RULER / AFFECTS YOU / etc.) if present
-                if (sectionLabel != null) {
-                    Text(
-                        sectionLabel,
-                        color = CardGold,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                    Spacer(Modifier.height(4.dp))
-                }
-                Text(text, color = OnSurface, fontSize = 13.sp, lineHeight = 19.sp)
+                Text(displayText, color = OnSurface, fontSize = 13.sp, lineHeight = 19.sp)
             }
         }
     }
