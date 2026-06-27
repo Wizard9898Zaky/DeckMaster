@@ -8,8 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -29,22 +27,9 @@ jobs:
         run: gradle assembleRelease
         working-directory: DeckMaster
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DeckMaster-release-apk
           path: DeckMaster/app/build/outputs/apk/release/*.apk
           retention-days: 90
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0
-          name: DeckMaster v1.0
-          body: |
-            DeckMaster Android app — first release.
-            Built automatically by GitHub Actions.
-          files: DeckMaster/app/build/outputs/apk/release/*.apk
-          make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
