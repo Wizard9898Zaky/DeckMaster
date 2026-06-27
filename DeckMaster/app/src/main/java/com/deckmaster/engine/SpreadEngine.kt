@@ -31,6 +31,9 @@ object SpreadEngine {
     /** Days in each month (non-leap). Used for sunrise-adjustment rollback. */
     val DAYS_IN_MONTH = intArrayOf(0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 
+    /** Sub-period day index boundaries within a 52-day period (7 pairs of start/end). */
+    val PDAY = intArrayOf(0, 7, 7, 14, 15, 21, 22, 29, 30, 36, 37, 44, 44, 51)
+
     // quad_order for 52-card deck
     private val QUAD_ORDER_52 = intArrayOf(
         2,13,24,48,17,28,39,6,32,43,10,21,47,1,12,38,
@@ -81,6 +84,15 @@ object SpreadEngine {
      * Exactly: days_before_month[month] + day
      */
     fun date2jd(month: Int, day: Int): Int = DAYS_BEFORE_MONTH[month] + day
+
+    /**
+     * jd2dateStr() — convert JD to "M/D" display string.
+     */
+    fun jd2dateStr(jd: Int): String {
+        if (jd <= 0) return ""
+        val (m, d) = jd2date(jd)
+        return "$m/$d"
+    }
 
     /**
      * jd2date() — convert julian day back to (month, day).
@@ -430,7 +442,8 @@ object SpreadEngine {
         val quad: List<String>,           // 52 cards (after contra_indications + invert)
         val rulerCard: String,
         val planetCards: List<String>,    // 7 cards: Mercury .. Moon
-        val info: String                  // label (age / period# / day# / week# / weekday name)
+        val info: String,                 // label (age / period# / day# / week# / weekday name)
+        val rowDateLabels: List<Pair<String, String>> = emptyList() // 7 (left, right) for Mercury..Moon rows
     )
 
     enum class SpreadType(val label: String) {
@@ -492,7 +505,7 @@ object SpreadEngine {
             val found = period.indexOfFirst { it == tjd }
             if (found >= 0) {
                 pnum = p
-                cardNum = found % 52
+                cardNum = (found + 1) % 52
                 break
             }
         }
@@ -505,7 +518,7 @@ object SpreadEngine {
             val found = week.indexOfFirst { it == tjd }
             if (found >= 0) {
                 wnum = w
-                wkdayNum = found % 8
+                wkdayNum = (found + 1) % 8
                 break
             }
         }
@@ -568,18 +581,49 @@ object SpreadEngine {
             dayOfWeek(targetYear, targetMonth, targetDay)
         ]
 
+        // ── Row date labels for each spread ───────────────────────────────────
+        // Age: 7 rows = 7 periods (Mercury=Period1 … Moon=Period7)
+        val ageRowLabels: List<Pair<String, String>> = periodJDs.map { jds ->
+            Pair(jd2dateStr(jds.firstOrNull() ?: 0), jd2dateStr(jds.lastOrNull() ?: 0))
+        }
+
+        // Period: 7 rows = 7 sub-periods within current period (using PDAY boundaries)
+        val currentPeriodJDs = periodJDs.getOrElse(pnum - 1) { intArrayOf() }
+        val periodRowLabels: List<Pair<String, String>> = (0 until 7).map { k ->
+            val startIdx = PDAY[k * 2]
+            val endIdx   = PDAY[k * 2 + 1]
+            Pair(
+                jd2dateStr(currentPeriodJDs.getOrElse(startIdx) { 0 }),
+                jd2dateStr(currentPeriodJDs.getOrElse(endIdx)   { 0 })
+            )
+        }
+
+        // Week/Weekday: 7 rows = 7 days of current week (date + weekday name)
+        val weekdayNames = arrayOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+        val currentWeekJDs = weekJDs.getOrElse(wnum - 1) { intArrayOf() }
+        val targetDayOfWeek = dayOfWeek(targetYear, targetMonth, targetDay)
+        // Day 1 of the week is (wkdayNum - 1) days before the target
+        val day1DOW = (targetDayOfWeek - (wkdayNum - 1) + 70) % 7
+        val weekRowLabels: List<Pair<String, String>> = (0 until 7).map { i ->
+            val jd  = currentWeekJDs.getOrElse(i) { 0 }
+            val dow = (day1DOW + i) % 7
+            Pair(jd2dateStr(jd), weekdayNames[dow])
+        }
+
         return listOf(
             SpreadResult(
                 SpreadType.AGE,
                 contraIndications(ageQuadRaw),
                 ageRuler, agePlanets,
-                "$age"
+                "$age",
+                ageRowLabels
             ),
             SpreadResult(
                 SpreadType.PERIOD,
                 contraIndications(periodQuadRaw),
                 periodRuler, periodPlanets,
-                "#$pnum"
+                "#$pnum",
+                periodRowLabels
             ),
             SpreadResult(
                 SpreadType.DAY,
@@ -591,13 +635,15 @@ object SpreadEngine {
                 SpreadType.WEEK,
                 contraIndications(weekQuadRaw),
                 weekRuler, weekPlanets,
-                "#$wnum"
+                "#$wnum",
+                weekRowLabels
             ),
             SpreadResult(
                 SpreadType.WEEKDAY,
                 contraIndications(wkdayQuadRaw),
                 wkdayRuler, wkdayPlanets,
-                weekdayName
+                weekdayName,
+                weekRowLabels
             )
         )
     }
