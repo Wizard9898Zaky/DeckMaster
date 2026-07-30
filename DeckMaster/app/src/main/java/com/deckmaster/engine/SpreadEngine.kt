@@ -642,8 +642,7 @@ object SpreadEngine {
                 SpreadType.WEEKDAY,
                 contraIndications(wkdayQuadRaw),
                 wkdayRuler, wkdayPlanets,
-                weekdayName,
-                weekRowLabels
+                weekdayName
             )
         )
     }
