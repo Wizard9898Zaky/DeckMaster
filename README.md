@@ -1,2 +1,133 @@
 # DeckMaster
-DeckMaster Android app — Jetpack Compose cartomancy app
+
+DeckMaster is an Android cartomancy app built with Jetpack Compose.
+
+## Building on Termux
+
+You can compile DeckMaster into an installable APK directly on your phone using [Termux](https://termux.dev/). No root access required.
+
+### Prerequisites
+
+- Termux installed from [F-Droid](https://f-droid.org/en/packages/com.termux/) (the Play Store version is outdated)
+- ~2 GB free storage for the Android SDK + build tools
+- An ARM64 device (most modern Android phones)
+
+### Step 1: Install packages
+
+```bash
+pkg update -y && pkg upgrade -y
+pkg install openjdk-17 git wget unzip -y
+```
+
+Verify Java:
+
+```bash
+java -version
+# Should show version 17
+```
+
+### Step 2: Install the Android SDK
+
+```bash
+# Download the Termux SDK installer
+wget -O ~/install-android-sdk.sh https://raw.githubusercontent.com/Sohil876/termux-sdk-installer/main/installer.sh
+chmod +x ~/install-android-sdk.sh
+bash ~/install-android-sdk.sh -i
+```
+
+Accept licenses and install the platform + build tools (API 35, matching `compileSdk`):
+
+```bash
+yes | sdkmanager --licenses
+yes | sdkmanager "platforms;android-35" "build-tools;35.0.0"
+```
+
+### Step 3: Fix the aapt2 symlink
+
+Termux ships its own `aapt2` in a different location than the SDK expects. Link it:
+
+```bash
+AAPT2_PATH=$(which aapt2)
+ln -sf "$AAPT2_PATH" $ANDROID_HOME/build-tools/35.0.0/aapt2
+```
+
+### Step 4: Set environment variables
+
+Add these to `~/.bashrc` so they persist across sessions:
+
+```bash
+cat >> ~/.bashrc << 'EOF'
+export ANDROID_HOME=~/android-sdk
+export PATH=$PATH:$ANDROID_HOME/build-tools/35.0.0:$ANDROID_HOME/cmdline-tools/latest/bin
+EOF
+source ~/.bashrc
+```
+
+### Step 5: Clone and build
+
+```bash
+git clone https://github.com/Wizard9898Zaky/DeckMaster.git
+cd DeckMaster/DeckMaster
+```
+
+Create `local.properties` pointing to the SDK:
+
+```bash
+echo "sdk.dir=$ANDROID_HOME" > local.properties
+```
+
+Build the release APK:
+
+```bash
+chmod +x gradlew
+./gradlew assembleRelease
+```
+
+The APK will be at:
+
+```
+app/build/outputs/apk/release/app-release.apk
+```
+
+### Step 6: Install on your phone
+
+```bash
+termux-open app/build/outputs/apk/release/app-release.apk
+```
+
+This opens the Android installer to install the APK directly.
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| **Out of memory** | The `gradle.properties` is already tuned for low-RAM devices (`-Xmx768m`, single worker, no daemon). If it still OOMs, try closing other apps first. |
+| **`gradlew` permission denied** | Run `chmod +x gradlew` |
+| **SDK location not found** | Create `local.properties` in the `DeckMaster/` directory with `sdk.dir=/data/data/com.termux/files/home/android-sdk` |
+| **aapt2 crashes** | This is the most common Termux build issue. Run `pkg install aapt2` and re-create the symlink from Step 3. |
+| **`build-tools;35.0.0` not found** | Run `yes \| sdkmanager "build-tools;35.0.0"` again — it may have failed silently during license acceptance. |
+
+## Building with GitHub Actions
+
+This repo includes a CI workflow (`.github/workflows/build.yml`) that automatically builds a release APK on every push to `main`. You can download the APK from the Actions tab → latest run → Artifacts.
+
+## Project structure
+
+```
+DeckMaster/
+├── app/                    # App module
+│   ├── build.gradle.kts    # App-level Gradle config (Compose, SDK versions)
+│   └── src/                # Kotlin source code
+├── build.gradle.kts        # Root Gradle config
+├── settings.gradle.kts     # Gradle settings
+├── gradle.properties       # JVM/worker tuning (low-memory friendly)
+└── gradlew                 # Gradle wrapper
+```
+
+## Tech stack
+
+- **Language:** Kotlin
+- **UI:** Jetpack Compose with Material 3
+- **Min SDK:** 26 (Android 8.0)
+- **Target SDK:** 35 (Android 15)
+- **Build:** Gradle Kotlin DSL
