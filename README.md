@@ -39,19 +39,19 @@ Accept licenses and install the platform + build tools (API 35, matching `compil
 
 ```bash
 yes | sdkmanager --licenses
-yes | sdkmanager "platforms;android-35" "build-tools;35.0.0"
+yes | sdkmanager "platforms;android-36" "build-tools;36.0.0"
 ```
 
-### Step 3: Install Gradle 8.9 (manual install)
+### Step 3: Install Gradle 9.5+ (manual install)
 
-The Termux `pkg install gradle` version is too old for the Android Gradle Plugin (AGP 8.7.3). Install Gradle 8.9 manually to match the CI:
+The Termux `pkg install gradle` version is too old for the Android Gradle Plugin (AGP 9.3.0). Install Gradle 9.5+ manually to match the CI:
 
 ```bash
-wget -O ~/gradle-8.9-bin.zip https://services.gradle.org/distributions/gradle-8.9-bin.zip
+wget -O ~/gradle-9.5-bin.zip https://services.gradle.org/distributions/gradle-9.5-bin.zip
 mkdir -p ~/gradle
-unzip -d ~/gradle ~/gradle-8.9-bin.zip
-mv ~/gradle/gradle-8.9 ~/gradle/gradle
-rm ~/gradle-8.9-bin.zip
+unzip -d ~/gradle ~/gradle-9.5-bin.zip
+mv ~/gradle/gradle-9.5 ~/gradle/gradle
+rm ~/gradle-9.5-bin.zip
 ```
 
 Add Gradle to your PATH:
@@ -59,7 +59,7 @@ Add Gradle to your PATH:
 ```bash
 cat >> ~/.bashrc << 'EOF'
 export ANDROID_HOME=~/android-sdk
-export PATH=$PATH:$ANDROID_HOME/build-tools/35.0.0:$ANDROID_HOME/cmdline-tools/latest/bin:~/gradle/gradle/bin
+export PATH=$PATH:$ANDROID_HOME/build-tools/36.0.0:$ANDROID_HOME/cmdline-tools/latest/bin:~/gradle/gradle/bin
 EOF
 source ~/.bashrc
 ```
@@ -68,7 +68,7 @@ Verify Gradle:
 
 ```bash
 gradle -v
-# Should show Gradle 8.9
+# Should show Gradle 9.5+
 ```
 
 ### Step 4: Fix the aapt2 symlink
@@ -77,7 +77,7 @@ Termux ships its own `aapt2` in a different location than the SDK expects. Link 
 
 ```bash
 AAPT2_PATH=$(which aapt2)
-ln -sf "$AAPT2_PATH" $ANDROID_HOME/build-tools/35.0.0/aapt2
+ln -sf "$AAPT2_PATH" $ANDROID_HOME/build-tools/36.0.0/aapt2
 ```
 
 ### Step 5: Clone and build
@@ -100,7 +100,7 @@ chmod +x gradlew
 ./gradlew assembleRelease
 ```
 
-The `gradlew` script delegates to the system-installed Gradle via `which gradle`, so it picks up Gradle 8.9 from Step 3 automatically.
+The `gradlew` script delegates to the system-installed Gradle via `which gradle`, so it picks up Gradle 9.5+ from Step 3 automatically.
 
 The APK will be at:
 
@@ -120,12 +120,12 @@ This opens the Android installer to install the APK directly.
 
 | Problem | Fix |
 |---|---|
-| **Plugin not found / AGP resolve failure** | You need Gradle 8.9+ (Step 3). Run `gradle -v` to check. The `pkg install gradle` version is too old. |
+| **Plugin not found / AGP resolve failure** | You need Gradle 9.5+ (Step 3). Run `gradle -v` to check. The `pkg install gradle` version is too old. |
 | **Out of memory** | The `gradle.properties` is already tuned for low-RAM devices (`-Xmx768m`, single worker, no daemon). If it still OOMs, try closing other apps first. |
 | **`gradlew` permission denied** | Run `chmod +x gradlew` |
 | **SDK location not found** | Create `local.properties` in the `DeckMaster/` directory with `sdk.dir=/data/data/com.termux/files/home/android-sdk` |
 | **aapt2 crashes** | This is the most common Termux build issue. Run `pkg install aapt2` and re-create the symlink from Step 4. |
-| **`build-tools;35.0.0` not found** | Run `yes \| sdkmanager "build-tools;35.0.0"` again — it may have failed silently during license acceptance. |
+| **`build-tools;36.0.0` not found** | Run `yes \| sdkmanager "build-tools;36.0.0"` again — it may have failed silently during license acceptance. |
 | **Daemon environment warning** | Harmless on Termux. The "no native integration" message is expected — it won't affect the build. |
 
 ## Building with GitHub Actions
