@@ -1,2 +1,3 @@
-#!/bin/sh
-exec "$GRADLE_HOME/bin/gradle" "$@"
+#!/usr/bin/env bash
+GRADLE_HOME=$(which gradle)
+exec "$GRADLE_HOME" "$@"
