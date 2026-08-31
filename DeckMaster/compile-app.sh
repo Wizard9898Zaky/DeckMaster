@@ -85,7 +85,6 @@ export PATH=$PATH:~/gradle/gradle/bin
 
 ### Step 4: Build
 echo "sdk.dir=$ANDROID_HOME" > local.properties
-sed -i '/gradle-version:/s/8.9/9.5/' ../.github/workflows/build.yml 2>/dev/null || true
 
 echo "Starting build..."
 chmod +x gradlew
