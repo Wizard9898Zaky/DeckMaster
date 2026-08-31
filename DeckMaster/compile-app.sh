@@ -69,11 +69,11 @@ a=($(gradle -v | sed -n /Gradle/p | awk '{ print $2 }' | awk -F. '{ print $1, $2
 [ "$a" -gt 9 ] ||
 [[ "$a" -eq 9 && "${a[1]}" -ge 5 ]] || {
     echo "Installing Gradle 9.5..."
-    wget -O ~/gradle-9.5-bin.zip https://services.gradle.org/distributions/gradle-9.5-bin.zip
+    wget -O ~/gradle-9.5.0-bin.zip https://services.gradle.org/distributions/gradle-9.5.0-bin.zip
     mkdir -p ~/gradle
-    unzip -d ~/gradle ~/gradle-9.5-bin.zip
-    mv ~/gradle/gradle-9.5 ~/gradle/gradle
-    rm ~/gradle-9.5-bin.zip
+    unzip -d ~/gradle ~/gradle-9.5.0-bin.zip
+    mv ~/gradle/gradle-9.5.0 ~/gradle/gradle
+    rm ~/gradle-9.5.0-bin.zip
 }
 
 grep -q 'gradle/gradle/bin' ~/.bashrc || cat >> ~/.bashrc << 'EOF'
