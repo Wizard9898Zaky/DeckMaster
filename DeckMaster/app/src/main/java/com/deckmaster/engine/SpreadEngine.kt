@@ -24,7 +24,8 @@ object SpreadEngine {
 
     /**
      * days_before_month — indexed 1..12 (index 0 unused).
-     * Non-leap-year fixed values, exactly as in the bash script.
+     * 366-day values, exactly as in the bash script; jd 60 is Feb 29 and is
+     * skipped in non-leap years by getPeriodJDs()/getWeekJDs().
      */
     val DAYS_BEFORE_MONTH = intArrayOf(0, 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335)
 
@@ -468,6 +469,7 @@ object SpreadEngine {
         val bjd = date2jd(birthMonth, birthDay)
         val tjd = date2jd(targetMonth, targetDay)
         if (tjd < bjd) age--
+        if (age < 0) age = 0
 
         // Age spread
         val ageSpread: List<String> = if (isJoker) {
@@ -530,7 +532,6 @@ object SpreadEngine {
         val periodPlanetRaw = getCutPattern(agePlanetFull[pnum], tablets[(age + pnum) % 90])
         val periodRuler = periodPlanetRaw[0]
         val periodPlanets = periodPlanetRaw.drop(1)
-        val periodPlanetFull = listOf(periodRuler) + periodPlanets
 
         // Period quad (raw)
         val periodQuadRaw = makeQuadFromDaySpread(birthCard, periodRuler, daySpread)
@@ -542,7 +543,6 @@ object SpreadEngine {
         )
         val dayRuler = dayPlanetRaw[0]
         val dayPlanets = dayPlanetRaw.drop(1)
-        val dayPlanetFull = listOf(dayRuler) + dayPlanets
 
         // Day quad (raw)
         val dayQuadRaw = makeQuadFromCutPatternStack(
@@ -684,6 +684,7 @@ object SpreadEngine {
                 d = 31
             } else {
                 d = DAYS_IN_MONTH[m]
+                if (m == 2 && isLeapYear(y)) d = 29
             }
         }
         return Triple(y, m, d)

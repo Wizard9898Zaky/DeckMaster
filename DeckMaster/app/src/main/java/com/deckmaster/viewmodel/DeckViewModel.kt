@@ -18,6 +18,7 @@ class DeckViewModel : ViewModel() {
     // ──────────────────────────────────────────────────────────────────────────
     // Pre-computed tablets (expensive — compute once on background thread)
     // ──────────────────────────────────────────────────────────────────────────
+    @Volatile
     private var tablets: Array<List<String>>? = null
 
     init {

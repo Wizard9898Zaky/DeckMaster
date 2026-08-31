@@ -8,9 +8,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -31,7 +28,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deckmaster.data.*
 import com.deckmaster.engine.SpreadEngine
-import com.deckmaster.engine.SpreadEngine.Planet
 import com.deckmaster.engine.SpreadEngine.SpreadType
 import com.deckmaster.ui.theme.*
 import com.deckmaster.viewmodel.DeckViewModel
@@ -154,7 +150,7 @@ fun BirthDateScreen(onConfirm: (Int, Int, Int, Boolean) -> Unit) {
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center
                 )
-                Divider(color = CardGold.copy(alpha = 0.3f))
+                HorizontalDivider(color = CardGold.copy(alpha = 0.3f))
 
                 selectedDate?.let { d ->
                     Row(
@@ -377,7 +373,7 @@ fun RulerRow(spread: SpreadEngine.SpreadResult, selectedCardIdx: Int?, onRulerTa
                     )
                 }
 
-                Divider(Modifier.width(1.dp).height(44.dp), color = CardGold.copy(alpha = 0.3f))
+                VerticalDivider(Modifier.height(44.dp), color = CardGold.copy(alpha = 0.3f))
 
                 // Planet cards
                 spread.planetCards.take(7).forEachIndexed { i, card ->
@@ -412,12 +408,6 @@ fun CardGrid(
     onCardTap: (Int) -> Unit
 ) {
     val planetCards = spread.planetCards.toSet()
-
-    // Group headers: Crown(0-2), then 7 planets × 7 cards
-    val sectionLabels = mapOf(
-        0 to "Crown", 3 to "Mercury", 10 to "Venus", 17 to "Mars",
-        24 to "Jupiter", 31 to "Saturn", 38 to "Sun", 45 to "Moon"
-    )
 
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 6.dp)) {
         // Render by planet group
@@ -492,14 +482,14 @@ fun PlanetSectionHeader(label: String, dateLabel: Pair<String, String>? = null) 
                 color = CardGold.copy(alpha = 0.7f),
                 fontSize = 10.sp
             )
-            Divider(Modifier.weight(1f).height(1.dp), color = PlanetGlow.copy(alpha = 0.2f))
+            HorizontalDivider(Modifier.weight(1f), color = PlanetGlow.copy(alpha = 0.2f))
             Text(
                 dateLabel.second,
                 color = CardGold.copy(alpha = 0.7f),
                 fontSize = 10.sp
             )
         } else {
-            Divider(Modifier.weight(1f).height(1.dp), color = PlanetGlow.copy(alpha = 0.2f))
+            HorizontalDivider(Modifier.weight(1f), color = PlanetGlow.copy(alpha = 0.2f))
         }
     }
 }
@@ -516,7 +506,6 @@ fun PlayingCard(
     isSelected: Boolean = false
 ) {
     val isNull = (code == "0A")
-    val suit   = cardSuit(code)
     val red    = isRed(code)
 
     val borderColor = when {
@@ -672,7 +661,7 @@ fun InterpretationPanel(
                 }
             }
 
-            Divider(Modifier.padding(vertical = 8.dp), color = CardGold.copy(alpha = 0.2f))
+            HorizontalDivider(Modifier.padding(vertical = 8.dp), color = CardGold.copy(alpha = 0.2f))
 
             // Scrollable text body
             Column(

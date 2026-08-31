@@ -47,11 +47,11 @@ yes | sdkmanager "platforms;android-36" "build-tools;36.0.0"
 The Termux `pkg install gradle` version is too old for the Android Gradle Plugin (AGP 9.3.0). Install Gradle 9.5+ manually to match the CI:
 
 ```bash
-wget -O ~/gradle-9.5-bin.zip https://services.gradle.org/distributions/gradle-9.5-bin.zip
+wget -O ~/gradle-9.5.0-bin.zip https://services.gradle.org/distributions/gradle-9.5.0-bin.zip
 mkdir -p ~/gradle
-unzip -d ~/gradle ~/gradle-9.5-bin.zip
-mv ~/gradle/gradle-9.5 ~/gradle/gradle
-rm ~/gradle-9.5-bin.zip
+unzip -d ~/gradle ~/gradle-9.5.0-bin.zip
+mv ~/gradle/gradle-9.5.0 ~/gradle/gradle
+rm ~/gradle-9.5.0-bin.zip
 ```
 
 Add Gradle to your PATH:
