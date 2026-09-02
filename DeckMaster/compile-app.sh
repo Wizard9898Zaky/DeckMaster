@@ -2,13 +2,11 @@
 set -e
 
 ### Prerequisites
-
-# Set ANDROID_HOME explicitly so it's available immediately
 export ANDROID_HOME=~/android-sdk
 
 ### Step 1: Install packages
 pkg update -y && pkg upgrade -y
-pkg install openjdk-17 git wget unzip gradle -y
+pkg install openjdk-17 git wget unzip gradle aapt2 -y
 
 ### Verify Java:
 a=$(java --show-version | head -1 | awk '{ print $2 }')
@@ -49,20 +47,26 @@ if ! yes | sdkmanager "platforms;android-36" 2>/dev/null; then
     fi
 fi
 
-# Verify aapt2 exists and is ARM-compatible (critical for Termux)
-AAPT2_PATH=$ANDROID_HOME/build-tools/36.0.0/aapt2
-if [ ! -f "$AAPT2_PATH" ]; then
-    echo "⚠ aapt2 not found at $AAPT2_PATH — searching..."
-    FOUND_AAPT2=$(find "$ANDROID_HOME" -name "aapt2" -type f 2>/dev/null | head -1)
-    if [ -n "$FOUND_AAPT2" ]; then
-        ln -sf "$FOUND_AAPT2" "$AAPT2_PATH"
-        echo "Symlinked aapt2 from $FOUND_AAPT2 ✓"
-    else
-        echo "ERROR: No ARM-compatible aapt2 found."
-        exit 1
+### Find a working ARM aapt2
+# Priority: Termux pkg (native ARM) > SDK build-tools
+AAPT2_PATH=""
+# Check Termux-native aapt2 first (installed via pkg install aapt2)
+if [ -x /data/data/com.termux/files/usr/bin/aapt2 ]; then
+    AAPT2_PATH=/data/data/com.termux/files/usr/bin/aapt2
+    echo "Using Termux-native aapt2: $AAPT2_PATH"
+fi
+# Fallback: SDK build-tools aapt2
+if [ -z "$AAPT2_PATH" ]; then
+    BUILT_AAPT2=$ANDROID_HOME/build-tools/36.0.0/aapt2
+    if [ -x "$BUILT_AAPT2" ]; then
+        AAPT2_PATH=$BUILT_AAPT2
+        echo "Using SDK build-tools aapt2: $AAPT2_PATH"
     fi
 fi
-echo "Using aapt2: $AAPT2_PATH"
+if [ -z "$AAPT2_PATH" ]; then
+    echo "ERROR: No ARM-compatible aapt2 found. Run: pkg install aapt2"
+    exit 1
+fi
 
 ### Step 3: Ensure Gradle 9.5+
 a=($(gradle -v | sed -n /Gradle/p | awk '{ print $2 }' | awk -F. '{ print $1, $2, $3 }'))
@@ -83,13 +87,22 @@ EOF
 
 export PATH=$PATH:~/gradle/gradle/bin
 
-### Step 4: Build
+### Step 4: Write aapt2 override to user-level gradle.properties
+# This is read for ALL Gradle builds and isn't tracked by git
+mkdir -p ~/.gradle
+# Remove any existing override to avoid duplicates
+sed -i '/android.aapt2FromMavenOverride/d' ~/.gradle/gradle.properties 2>/dev/null || true
+echo "android.aapt2FromMavenOverride=$AAPT2_PATH" >> ~/.gradle/gradle.properties
+echo "✅ Wrote aapt2 override to ~/.gradle/gradle.properties"
+
+### Step 5: Build
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 sed -i '/gradle-version:/s/8.9/9.5/' ../.github/workflows/build.yml 2>/dev/null || true
 
 echo "Starting build..."
 chmod +x gradlew
 ./gradlew assembleRelease \
-    -Dandroid.aapt2FromMavenOverride="$AAPT2_PATH"
+    -Dandroid.aapt2FromMavenOverride="$AAPT2_PATH" \
+    -Pandroid.aapt2FromMavenOverride="$AAPT2_PATH"
 
 # APK at: app/build/outputs/apk/release/app-release.apk
