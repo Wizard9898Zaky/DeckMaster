@@ -1,16 +1,32 @@
-// Detect a native aapt2 on Termux and override the x86_64 Maven binary
-// before AGP has a chance to download and try to execute it.
-// Priority: Termux pkg (guaranteed device-arch) > SDK build-tools
+// Auto-detect Android SDK and native aapt2 on Termux.
+// This makes ./gradlew assembleRelease work from any shell session
+// without needing ANDROID_HOME or local.properties to be pre-set.
 run {
-    val candidates = mutableListOf<String>()
-    // Termux pkg install aapt2 — compiled for the device's exact CPU (32-bit or 64-bit ARM)
-    candidates.add("/data/data/com.termux/files/usr/bin/aapt2")
-    // SDK build-tools aapt2 — may be wrong arch on 32-bit devices
-    System.getenv("ANDROID_HOME")?.let {
-        candidates.add("$it/build-tools/36.0.0/aapt2")
+    val home = System.getProperty("user.home")
+
+    // --- SDK detection ---
+    val sdkCandidates = mutableListOf<String>()
+    System.getenv("ANDROID_HOME")?.let { sdkCandidates.add(it) }
+    sdkCandidates.add("$home/android-sdk")
+    for (path in sdkCandidates) {
+        val f = File(path)
+        if (f.exists() && f.isDirectory) {
+            // Write local.properties so AGP finds the SDK
+            val lp = File(settingsDir, "local.properties")
+            if (!lp.exists() || !lp.readText().contains("sdk.dir=")) {
+                lp.writeText("sdk.dir=${f.absolutePath}\n")
+                println("[DeckMaster] Wrote local.properties: sdk.dir=${f.absolutePath}")
+            }
+            break
+        }
     }
-    candidates.add("${System.getProperty("user.home")}/android-sdk/build-tools/36.0.0/aapt2")
-    for (path in candidates) {
+
+    // --- aapt2 detection (Termux pkg first, SDK build-tools fallback) ---
+    val aapt2Candidates = mutableListOf<String>()
+    aapt2Candidates.add("/data/data/com.termux/files/usr/bin/aapt2")
+    System.getenv("ANDROID_HOME")?.let { aapt2Candidates.add("$it/build-tools/36.0.0/aapt2") }
+    aapt2Candidates.add("$home/android-sdk/build-tools/36.0.0/aapt2")
+    for (path in aapt2Candidates) {
         val f = File(path)
         if (f.exists() && f.canExecute()) {
             System.setProperty("android.aapt2FromMavenOverride", f.absolutePath)
