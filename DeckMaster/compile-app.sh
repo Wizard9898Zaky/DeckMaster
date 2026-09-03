@@ -4,7 +4,7 @@ set -e
 ### Prerequisites
 export ANDROID_HOME=~/android-sdk
 
-### Step 1: Install packages
+### Step 1: Install packages — aapt2 is the Termux-native binary for your device's exact CPU
 pkg update -y && pkg upgrade -y
 pkg install openjdk-17 git wget unzip gradle aapt2 -y
 
@@ -47,24 +47,16 @@ if ! yes | sdkmanager "platforms;android-36" 2>/dev/null; then
     fi
 fi
 
-### Find a working ARM aapt2
-# Priority: Termux pkg (native ARM) > SDK build-tools
+### Find a working aapt2 — prefer Termux pkg (exact device arch) over SDK build-tools
 AAPT2_PATH=""
-# Check Termux-native aapt2 first (installed via pkg install aapt2)
 if [ -x /data/data/com.termux/files/usr/bin/aapt2 ]; then
     AAPT2_PATH=/data/data/com.termux/files/usr/bin/aapt2
     echo "Using Termux-native aapt2: $AAPT2_PATH"
-fi
-# Fallback: SDK build-tools aapt2
-if [ -z "$AAPT2_PATH" ]; then
-    BUILT_AAPT2=$ANDROID_HOME/build-tools/36.0.0/aapt2
-    if [ -x "$BUILT_AAPT2" ]; then
-        AAPT2_PATH=$BUILT_AAPT2
-        echo "Using SDK build-tools aapt2: $AAPT2_PATH"
-    fi
-fi
-if [ -z "$AAPT2_PATH" ]; then
-    echo "ERROR: No ARM-compatible aapt2 found. Run: pkg install aapt2"
+elif [ -x "$ANDROID_HOME/build-tools/36.0.0/aapt2" ]; then
+    AAPT2_PATH=$ANDROID_HOME/build-tools/36.0.0/aapt2
+    echo "Using SDK build-tools aapt2: $AAPT2_PATH"
+else
+    echo "ERROR: No aapt2 found. Run: pkg install aapt2"
     exit 1
 fi
 
@@ -88,9 +80,7 @@ EOF
 export PATH=$PATH:~/gradle/gradle/bin
 
 ### Step 4: Write aapt2 override to user-level gradle.properties
-# This is read for ALL Gradle builds and isn't tracked by git
 mkdir -p ~/.gradle
-# Remove any existing override to avoid duplicates
 sed -i '/android.aapt2FromMavenOverride/d' ~/.gradle/gradle.properties 2>/dev/null || true
 echo "android.aapt2FromMavenOverride=$AAPT2_PATH" >> ~/.gradle/gradle.properties
 echo "✅ Wrote aapt2 override to ~/.gradle/gradle.properties"
